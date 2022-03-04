@@ -1,0 +1,65 @@
+# Using version 2 as 3 does not support resource constraint options (cpu_*, mem_* limits) for non swarm mode in Compose
+version: "3.2"
+
+services:
+    base:
+        build:
+            context: .
+            dockerfile: Dockerfile-base
+        image: prj-base
+    build:
+        build:
+            context: .
+            dockerfile: Dockerfile-build-base
+        image: prj-build
+        depends_on:
+            - base
+    backend:
+        build: backend
+        depends_on:
+            - build
+        tmpfs:
+            - /run
+            - /tmp
+        ports:
+            - "1080-1099:1080-1099"
+        volumes:
+            - "/sys/fs/cgroup:/sys/fs/cgroup:ro"
+            - type: "bind"
+              source: "${PWD}/backend/target/opt"
+              target: "/opt"
+            - ${PWD}/backend/.bash_history:/root/.bash_history
+        networks:
+          - oros
+    frontend:
+        build: frontend
+        tmpfs:
+            - /run
+            - /tmp
+        ports:
+            - "8080:8080"
+            - "8000:8000"
+        volumes:
+            - type: "bind"
+              source: "${PWD}/web/target/oros-web-${version}"
+              target: "/usr/local/tomcat/webapps/oros/"
+            - ${PWD}/web/.bash_history:/root/.bash_history
+        environment:
+            - JPDA_ADDRESS=8000
+            - JPDA_TRANSPORT=dt_socket
+        depends_on:
+            - backend
+            - build 
+        networks:
+            - oros
+
+networks:
+  oros:
+    
+volumes:
+    shared-file-store-volume:
+        driver_opts:
+            type: tmpfs
+            device: tmpfs
+    web-classes:
+    backend-classes:

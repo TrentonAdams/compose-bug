@@ -1,0 +1,39 @@
+# 1. start with init stage, installing everything common across all stages
+# 2. deps and build stages are separated only to save on time by
+#    using cached images
+# 3. the final stage copies everything from the build stage into the
+#    appropriate directory
+#
+# init stage
+FROM tomcat:7.0.109-jdk8-corretto AS init
+
+RUN yum update -y \
+  && yum install -y \
+  bash \
+  curl \
+  jq \
+  which tar unzip \
+  python3 \
+  util-linux \
+  procps \
+  iputils \
+  less \
+  bind-utils \
+  && pip3 install j2cli awscli \
+  && yum clean all \
+  && rm -rf /var/cache/yum
+
+RUN (cd /lib/systemd/system/sysinit.target.wants/; for i in *; do [ $i == \
+systemd-tmpfiles-setup.service ] || rm -f $i; done); \
+rm -f /lib/systemd/system/multi-user.target.wants/*;\
+rm -f /etc/systemd/system/*.wants/*;\
+rm -f /lib/systemd/system/local-fs.target.wants/*; \
+rm -f /lib/systemd/system/sockets.target.wants/*udev*; \
+rm -f /lib/systemd/system/sockets.target.wants/*initctl*; \
+rm -f /lib/systemd/system/basic.target.wants/*;\
+rm -f /lib/systemd/system/anaconda.target.wants/*;
+
+# this just makes docker-compose okay with the fact that the container started
+# up and then stopped "successfully".  i.e. this image is only a "build-base"
+# of web and backend images.
+CMD ["/bin/true"]
